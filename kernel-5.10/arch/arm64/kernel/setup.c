@@ -296,6 +296,12 @@ u64 cpu_logical_map(unsigned int cpu)
 	return __cpu_logical_map[cpu];
 }
 
+u64 get_cpu_logical_id_by_map(int cpu)
+{
+	return __cpu_logical_map[cpu];
+}
+EXPORT_SYMBOL_GPL(get_cpu_logical_id_by_map);
+
 void __init __no_sanitize_address setup_arch(char **cmdline_p)
 {
 	init_mm.start_code = (unsigned long) _text;

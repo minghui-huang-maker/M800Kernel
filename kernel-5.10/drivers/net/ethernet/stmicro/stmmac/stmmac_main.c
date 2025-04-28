@@ -3027,19 +3027,25 @@ init_phy_error:
  *  Description:
  *  This is the stop entry point of the driver.
  */
+u64 g_rtosTestUse = 0;
+EXPORT_SYMBOL_GPL(g_rtosTestUse);
 static int stmmac_release(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 chan;
-
-	if (device_may_wakeup(priv->device))
+	
+	if (g_rtosTestUse) {
+		if (device_may_wakeup(priv->device))
 		phylink_speed_down(priv->phylink, false);
-	/* Stop and disconnect the PHY */
-	phylink_stop(priv->phylink);
-	phylink_disconnect_phy(priv->phylink);
+		/* Stop and disconnect the PHY */
+		phylink_stop(priv->phylink);
+		phylink_disconnect_phy(priv->phylink);
 
-	if (priv->plat->integrated_phy_power)
-		priv->plat->integrated_phy_power(priv->plat->bsp_priv, false);
+		if (priv->plat->integrated_phy_power)
+			priv->plat->integrated_phy_power(priv->plat->bsp_priv, false);
+	}
+	
+		
 
 	stmmac_disable_all_queues(priv);
 

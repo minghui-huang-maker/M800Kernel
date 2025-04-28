@@ -33,6 +33,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/kexec.h>
 #include <linux/kvm_host.h>
+#include <linux/notifier.h>
 
 #include <asm/alternative.h>
 #include <asm/atomic.h>
@@ -83,6 +84,7 @@ enum ipi_msg_type {
 	IPI_TIMER,
 	IPI_IRQ_WORK,
 	IPI_WAKEUP,
+	IPI_MCS,
 	NR_IPI
 };
 
@@ -899,6 +901,47 @@ static void ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
 #endif
 }
 
+int arch_send_mcs_ipi_mask(unsigned int ipinr, const struct cpumask *mask)
+{
+	//__smp_cross_call(mask, ipinr);
+	__ipi_send_mask(ipi_desc[ipinr], mask);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arch_send_mcs_ipi_mask);
+
+static ATOMIC_NOTIFIER_HEAD(ipievent_notif_chain);
+int register_ipievent_notifier(struct notifier_block *nb)
+{
+	int err;
+
+	if ((nb == NULL) || (nb->notifier_call == NULL)) {
+		printk("register ipievent_notifier notifier_block is NULL!\n");
+		return -1;
+	}
+
+	err = atomic_notifier_chain_register(&ipievent_notif_chain, nb);
+	return err;
+}
+EXPORT_SYMBOL_GPL(register_ipievent_notifier);
+
+int unregister_ipievent_notifier(struct notifier_block *nb)
+{
+	int err;
+
+	if (nb == NULL) {
+		printk("unregister ipievent_notifier notifier_block is NULL!\n");
+		return -1;
+	}
+
+	err = atomic_notifier_chain_register(&ipievent_notif_chain, nb);
+	return err;
+}
+EXPORT_SYMBOL_GPL(unregister_ipievent_notifier);
+
+int call_ipievent_notifiers(unsigned long ipinr, void *cpu)
+{
+	return atomic_notifier_call_chain(&ipievent_notif_chain, ipinr, cpu);
+}
 /*
  * Main handler for inter-processor interrupts
  */
@@ -954,6 +997,9 @@ static void do_handle_IPI(int ipinr)
 		break;
 #endif
 
+	case IPI_MCS:
+		call_ipievent_notifiers(ipinr, (void*)(unsigned long)cpu);
+		break;
 	default:
 		pr_crit("CPU%u: Unknown IPI message 0x%x\n", cpu, ipinr);
 		break;

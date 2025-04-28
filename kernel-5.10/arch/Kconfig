@@ -209,7 +209,7 @@ config USER_RETURN_NOTIFIER
 	  switch to user mode.
 
 config HAVE_IOREMAP_PROT
-	bool
+	def_bool y
 
 config HAVE_KPROBES
 	bool
